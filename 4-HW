@@ -1,0 +1,203 @@
+
+1. Составьте запрос для таблицы STUDENT таким образом, чтобы выходная таблица 
+--    содержала один столбец типа varchar, содержащий последовательность разделенных 
+--    символом ';' (точка с запятой) значений столбцов этой таблицы, и при этом 
+--    текстовые значения должны отображаться прописными символами (верхний регистр), 
+--    то есть быть представленными в следующем виде: 
+--    1;КАБАНОВ;ВИТАЛИЙ;M;550;4;ХАРЬКОВ;01/12/1990;2.
+--    ...
+--    примечание: в выборку должны попасть студенты из любого города из 5 букв
+
+select concat( ID, ';', UPPER (surname) ,'; ', UPPER (name) ,'; ', UPPER (gender) ,'; ', FLOOR ( stipend) ,'; ',
+  course ,'; ', convert ( varchar (5), city ) ,'; ', convert (varchar (12)  ,   BIRTHDAY, 103) ,'; ', UNIV_ID ) as Столбец from STUDENTS
+
+
+2. Составьте запрос для таблицы STUDENT таким образом, чтобы выходная таблица 
+--    содержала всего один столбец в следующем виде: 
+--    В.КАБАНОВ;местожительства-ХАРЬКОВ;родился-01.12.90
+--    ...
+--    примечание: в выборку должны попасть студенты, фамилия которых содержит вторую
+--    букву 'е' и предпоследнюю букву 'и', либо же фамилия заканчивается на 'ц'
+
+SELECT
+--NAME
+--,SURNAME
+--,CITY
+--,isnull(convert (varchar (12), BIRTHDAY,105),'unknown') 
+concat(LEFT(NAME,1),'.',UPPER(SURNAME),';местожительства-',UPPER(CITY),';родился-',isnull(convert (varchar (12), BIRTHDAY,105),'неизвестно'))
+FROM STUDENTS
+WHERE  ((RIGHT(LEFT(SURNAME,2),1)='е' AND LEFT(RIGHT(SURNAME,2),1)='и') OR RIGHT(SURNAME,1)='ц')
+
+
+
+3. Составьте запрос для таблицы STUDENT таким образом, чтобы выходная таблица 
+--    содержала всего один столбец в следующем виде:
+--    т.цилюрик;местожительства-Херсон; учится на IV курсе
+--    ...
+--    примечание: курс указать римскими цифрами (воспользуйтесь CASE), 
+--    отобрать студентов, стипендия которых кратна 200
+
+ select
+concat (lower(left( NAME,1)+'.'+SURNAME ), ';',  'местожительства-', CITY, ';', ' учится на' 
+,case
+	when convert(varchar, COURSE)= 1 then 'I'
+	when convert(varchar, COURSE)= 2 then 'II'
+	when convert(varchar, COURSE)= 3 then 'III'
+	when convert(varchar, COURSE)= 4 then 'IV'
+	when convert(varchar, COURSE)= 5 then 'V'
+end
+	  +' курсе')
+from STUDENTS
+     where STIPEND % 200 = 0
+
+
+
+
+
+--4. Составьте запрос для таблицы STUDENT таким образом, чтобы выборка 
+--    содержала столбец в следующего вида:
+--     Нина Федосеева из г.Днепр родилась в 1992 году
+--     ...
+--     Дмитрий Коваленко из г.Хмельницкий родился в 1993 году
+--     ...
+--     примечание: для всех городов, в которых более 8 букв
+
+select
+concat(name, ' ', surname, ' '+'из г.'
+,  city  , ' '
+--,gender
+,case gender
+when 'f' then ' родилась в '
+when  'm' then ' родился в '
+else 'Неизвесно'
+end
+,YEAR(BIRTHDAY),' году')
+
+from STUDENTS
+where len(city)>8
+
+--5. Вывести фамилии, имена студентов и величину получаемых ими стипендий, 
+--    при этом значения стипендий первокурсников должны быть увеличены на 17.5%
+
+select
+surname
+,name
+,case Course
+when 1 then round((stipend*1.175),2,1) else stipend
+end
+,COURSE
+from STUDENTS
+
+
+
+
+
+6. Вывести наименования всех учебных заведений и их расстояния 
+--    (придумать/нагуглить/взять на глаз) до Киева.
+
+select 
+ Name 
+,case ID
+when 1 then '5'
+when 2 then ' 8'
+when 3 then '577'
+when 4 then '7'
+when 5 then '586'
+when 6 then '435'
+when 7 then '542'
+when 8 then '625'
+when 9 then '440'
+when 10 then ' 452'
+when 11 then '3'
+when 12 then '256'
+when 13 then '676'
+when 14 then '78'
+when 15 then '121'
+end as UNIV_DISTANCE
+from UNIVERSITIES 
+
+
+7. Вывести все учебные заведения и их две последние цифры рейтинга.
+
+select 
+id
+,name
+--,rating
+,LEFT(RIGHT(rating,2),2) AS PRELAST_LETT
+from UNIVERSITIES
+
+
+--8. Составьте запрос для таблицы UNIVERSITY таким образом, чтобы выходная таблица 
+--    содержала всего один столбец в следующем виде:
+--    Код-1;КПИ-г.Киев;Рейтинг относительно ДНТУ(501) +756
+--    ...
+--    Код-11;КНУСА-г.Киев;рейтинг относительно ДНТУ(501) -18
+--    ...
+--    примечание: рейтинг вычислить относительно ДНТУшного, а также должен 
+--    присутствовать знак (+/-), рейтинг ДНТУ заранее известен = 501
+
+select
+concat (
+'Код -', Id,'; ' ,name, ' -',' г.', city,' ; ','рейтинг относительно ДНТУ (501)  '
+--,rating
+,case 
+	  when rating - 501 > 0 then '+' + convert(varchar, rating - 501)
+      else convert(varchar, rating - 501)
+      end)
+from UNIVERSITIES;
+
+
+
+--9. Составьте запрос для таблицы UNIVERSITY таким образом, чтобы выходная таблица 
+--    содержала всего один столбец в следующем виде:
+--    Код-1;КПИ-г.Киев;рейтинг состоит из 12 сотен
+--    Код-2;КНУ-г.Киев;рейтинг состоит из 6 сотен
+--    ...
+--    примечание: в рейтинге необходимо указать кол-во сотен
+
+
+select
+concat (
+'Код -', Id,'; ' ,name, ' -',' г.', city,' ; ','рейтинг состоит из   '
+,Floor (rating/100))
+from UNIVERSITIES;
+
+
+
+
+
+
+
+
+-- 10	Получить список студентов, который содержит следующие поля
+--		Фамилия студента
+--		Дата рождения студента
+--		Знак зодиака студента
+--		информацию о знаках зодиака можно получить, например, здесь
+--		http://astro101.ru/about-astrology/683-znaki-zodiaka-po-chislam-mesjacam-stihijam.html
+--		для определения месяца в дате использовать функцию month(date). Например, если birthday равно '20-04-1998',
+--		то  month(birthday) равно 4
+--		для определения дня в дате использовать функцию day. day(birthday) равно 20
+--		для значения NULL должно быть выведено значение 'Неизвестно'
+
+select 
+SURNAME
+,convert(varchar(12), birthday, 105) 
+,case 
+when (MONTH(birthday)=03 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=04 and DAY(BIRTHDAY) between 1 and 20) then 'Овен'
+when (MONTH(birthday)=04 and DAY(BIRTHDAY) between 21 and 30) or (MONTH(birthday)=05 and DAY(BIRTHDAY) between 1 and 20) then 'Телец'
+when (MONTH(birthday)=05 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=06 and DAY(BIRTHDAY) between 1 and 20) then 'Близнецы'
+when (MONTH(birthday)=06 and DAY(BIRTHDAY) between 21 and 30) or (MONTH(birthday)=07 and DAY(BIRTHDAY) between 1 and 20) then 'Рак'
+when (MONTH(birthday)=07 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=08 and DAY(BIRTHDAY) between 1 and 20) then 'Лев'
+when (MONTH(birthday)=08 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=09 and DAY(BIRTHDAY) between 1 and 20) then 'Дева'
+when (MONTH(birthday)=09 and DAY(BIRTHDAY) between 21 and 30) or (MONTH(birthday)=10 and DAY(BIRTHDAY) between 1 and 20) then 'Весы'
+when (MONTH(birthday)=10 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=11 and DAY(BIRTHDAY) between 1 and 20) then 'Скорпион'
+when (MONTH(birthday)=11 and DAY(BIRTHDAY) between 21 and 30) or (MONTH(birthday)=12 and DAY(BIRTHDAY) between 1 and 20) then 'Стрелец'
+when (MONTH(birthday)=12 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=01 and DAY(BIRTHDAY) between 1 and 20) then 'Козерог'
+when (MONTH(birthday)=01 and DAY(BIRTHDAY) between 21 and 31) or (MONTH(birthday)=02 and DAY(BIRTHDAY) between 1 and 20) then 'Водолей'
+when (MONTH(birthday)=02 and DAY(BIRTHDAY) between 21 and 29) or (MONTH(birthday)=03 and DAY(BIRTHDAY) between 1 and 20) then 'Рыбы'
+else 'Неизвестно'
+end
+from STUDENTS
+
+
