@@ -1,0 +1,180 @@
+-- 1. Напишите запрос с EXISTS, позволяющий вывести данные обо всех студентах, 
+--    обучающихся в вузах с рейтингом не попадающим в диапазон от 488 до 571
+select *
+from STUDENTS S
+where  exists
+	(select 1
+	from UNIVERSITIES
+	where (RATING not between 488 and 571) and ID = S.UNIV_ID)
+
+-- 2. Напишите запрос с EXISTS, выбирающий всех студентов, для которых в том же городе, 
+--    где живет и учится студент, существуют другие университеты, в которых он не учится.
+--    Cтудент учится и живет в одном и том же городе и при этом у него есть альтернатива перевода в 
+--    другой университет, не покидая своего города
+
+SELECT   *
+FROM STUDENTS S
+WHERE  EXISTS (SELECT * FROM UNIVERSITIES U
+WHERE  U.ID <>S.UNIV_ID  and  U.CITY =S.CITY  )
+
+-- 3. Напишите запрос, выбирающий из таблицы SUBJECTS данные о названиях предметов обучения, 
+--    экзамены по которым были хоть как-то сданы более чем 12 студентами, за первые 10 дней сессии. 
+--    Используйте EXISTS. Примечание: по возможности выходная выборка должна быть без пересдач.
+
+select
+	NAME
+from SUBJECTS as SU  
+where exists (
+	select 1 from EXAM_MARKS
+	where 
+		SUBJ_ID = SU.ID
+		and exam_date <= (select DATEADD(dd, 10, min(exam_date)) from EXAM_MARKS)
+		and mark >= 3
+	group by subj_id
+	having count(distinct student_id) >= 12)
+-- 4. Напишите запрос EXISTS, выбирающий фамилии всех лекторов, преподающих в университетах
+--    с рейтингом, превосходящим рейтинг каждого харьковского универа.
+select SURNAME
+from LECTURERS L
+where exists
+	(select 1
+	from UNIVERSITIES U
+	where U.ID = L.UNIV_ID and RATING > all
+		(select RATING from UNIVERSITIES where CITY = 'Харьков'))
+
+
+-- 5. Напишите 2 запроса, использующий ANY и ALL, выполняющий выборку данных о студентах, 
+--    у которых в городе их постоянного местожительства нет университета.
+
+select
+*
+from STUDENTS as s1
+where s1.city >ALL (select s2.city from UNIVERSITIES as s2 where s1.city = s2.city)
+
+
+select
+*
+from STUDENTS as s1
+where  not s1.city = Any (select s2.city from UNIVERSITIES as s2 where s1.city = s2.city)
+
+-- 6. Напишите запрос выдающий имена и фамилии студентов, которые получили
+--    максимальные оценки в первый и последний день сессии.
+--    Подсказка: выборка должна содержать по крайне мере 2х студентов.
+select NAME, SURNAME
+	from STUDENTS S
+	where exists 
+		(select 1 
+		from EXAM_MARKS M 
+		where M.STUDENT_ID = S.ID and 
+			((MARK = (select MAX(MARK) from EXAM_MARKS where EXAM_DATE = (select MIN(EXAM_DATE) from EXAM_MARKS))
+					and
+			EXAM_DATE = (select MIN(EXAM_DATE) from EXAM_MARKS)) or
+			(MARK = (select MAX(MARK) from EXAM_MARKS where EXAM_DATE = (select MAX(EXAM_DATE) from EXAM_MARKS))
+					and
+					EXAM_DATE = (select MAX(EXAM_DATE) from EXAM_MARKS))
+			))
+
+-- 7. Напишите запрос EXISTS, выводящий кол-во студентов каждого курса, которые успешно 
+--    сдали экзамены, и при этом не получивших ни одной двойки.
+ 
+  select COURSE, COUNT(*) as QUANTITY
+from STUDENTS S
+where 
+exists
+	(select 1
+	from EXAM_MARKS EM
+	where MARK >=2 and S.ID = EM.STUDENT_ID and em.MARK is not null)
+and not exists (select 1
+	from EXAM_MARKS EM
+	where MARK =2 and S.ID = EM.STUDENT_ID and em.MARK is not null)
+group by COURSE
+
+
+-- 8. Напишите запрос EXISTS на выдачу названий предметов обучения, 
+--    по которым было получено максимальное кол-во оценок.
+select NAME
+from SUBJECTS as  S
+where exists 
+	(select 1
+	from EXAM_MARKS as  M 
+	where S.ID = M.SUBJ_ID 
+	having count(*) = 
+			(select top 1 count(*) as CNT
+			from EXAM_MARKS 
+group by SUBJ_ID
+order by CNT desc))
+
+
+-- 9. Напишите команду, которая выдает список фамилий студентов по алфавиту, 
+--    с колонкой комментарием: 'успевает' у студентов , имеющих все положительные оценки, 
+--    'не успевает' для сдававших экзамены, но имеющих хотя бы одну 
+--    неудовлетворительную оценку, и комментарием 'не сдавал' – для всех остальных.
+--    Примечание: по возможности воспользуйтесь операторами ALL и ANY.
+
+Select 
+	surname,
+	case
+	   when ST.ID not in (
+			Select distinct STUDENT_ID
+			from EXAM_MARKS
+		) then 'не сдавал'
+		when 2 < all(
+			Select mark
+			from EXAM_MARKS
+			where STUDENT_ID = ST.ID
+		) then 'успевает'				
+		when 2 = any(
+			Select mark
+			from EXAM_MARKS
+			where STUDENT_ID = ST.ID
+		) then 'не успевает'
+	end as 'успешность'
+from STUDENTS as ST
+order by SURNAME
+
+-- 10. Создайте объединение двух запросов, которые выдают значения полей 
+--     NAME, CITY, RATING для всех университетов. Те из них, у которых рейтинг 
+--     равен или выше 500, должны иметь комментарий 'Высокий', все остальные – 'Низкий'.
+
+select NAME, CITY, RATING,'Высокий'
+from UNIVERSITIES u
+where u.RATING>=500
+union all
+select NAME, CITY, RATING,'Низкий'
+from UNIVERSITIES u
+where u.RATING<500
+
+
+
+-- 11. Напишите UNION запрос на выдачу списка фамилий студентов 4-5 курсов в виде 3х полей выборки:
+--     SURNAME, 'студент <значение поля COURSE> курса', STIPEND
+--     включив в список преподавателей в виде
+--     SURNAME, 'преподаватель из <значение поля CITY>', <значение зарплаты в зависимости от города проживания (придумать самим)>
+--     отсортировать по фамилии
+--     Примечание: достаточно учесть 4-5 городов.
+
+
+select 
+SURNAME,CONCAT('студент ', COURSE, ' курса') as COURS_or_CITY,STIPEND as STIPEND_or_SALARY
+from STUDENTS
+where COURSE in (4,5)
+union all 
+	select SURNAME, CONCAT('преподаватель из ',CITY), 
+		case CITY
+			when 'Днепр' then  1000 
+			when 'Запорожье'  then  2000
+			when 'Киев' then  3000
+			when 'Луганск'  then  1000
+			when 'Луцк'  then  2000
+			when 'Львов' then  3000
+			when 'Полтава'  then  1000
+			when 'Ровно'  then  2000
+			when 'Симферополь'  then  3000
+			when 'Харьков' then  1000
+			when 'Херсон' then  2000
+			when 'Чернигов'  then  3000
+		else 0 end
+from LECTURERS
+order by SURNAME
+
+
