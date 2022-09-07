@@ -1,0 +1,155 @@
+/******************************************************************************************************************
+
+ ВНИМАНИЕ. После создания view и его использования удалите view из базы данных командой drop. 
+ 
+ *****************************************************************************************************************/
+
+
+
+-- 1. Создайте модифицируемое представление для получения сведений обо всех студентах, 
+--    круглых отличниках. Используя это представление, напишите запрос обновления, 
+--    "расжалующий" их в троечников.
+create view TROECHNIK as
+select 
+	s.ID,
+	s.SURNAME
+	,e.MARK
+	,avmm.avm
+from STUDENTS s
+left join EXAM_MARKS e
+on e.STUDENT_ID=s.ID
+left join
+	(
+		select ss.ID, avg(em.MARK) as avm from STUDENTS ss
+		inner join EXAM_MARKS em
+			on em.STUDENT_ID=ss.ID
+			group by ss.ID
+	)avmm
+on avmm.ID=s.ID
+where avmm.avm=5
+
+begin tran
+update TROECHNIK set MARK=3 
+rollback
+
+select * from TROECHNIK
+drop view TROECHNIK
+
+--for check
+select 
+s.id,s.SURNAME,avg(e.MARK) as avm 
+from STUDENTS s
+inner join EXAM_MARKS e
+on e.STUDENT_ID=s.ID
+group by s.id,s.SURNAME
+having s.id in (4,9,30)
+--having avg(e.MARK)=5
+
+
+
+-- 2. Создайте представление для получения сведений о количестве студентов 
+--    обучающихся в каждом городе.
+
+create view CITY_STIDENTS as
+select u.CITY,COUNT(s.ID) as N_STUD
+from STUDENTS s
+inner join UNIVERSITIES u
+on u.ID=s.UNIV_ID
+group by u.CITY
+
+drop view CITY_STIDENTS
+--for check
+select * from CITY_STIDENTS
+
+
+
+-- 3. Создайте представление для получения сведений по каждому студенту: 
+--    его ID, фамилию, имя, средний и общий баллы.
+create view BALL_STUD as 
+select
+	S.ID, 
+	S.NAME, 
+	S.SURNAME, 
+	avg (mark) as avg_m, 
+	sum (mark) as sum_m
+from  EXAM_MARKS E
+inner join  STUDENTS S
+	on S.ID= E.STUDENT_ID
+	group by S.ID, S.NAME, S.SURNAME
+drop view BALL_STUD
+--for check
+select * from BALL_STUD
+
+
+-- 4. Создайте представление для получения сведений о студенте фамилия, 
+--    имя, а также количестве экзаменов, которые он сдал успешно, и количество,
+--    которое ему еще нужно досдать (с учетом пересдач двоек).
+create view Success as
+select 
+	s.SURNAME, 
+	s.NAME, 
+	em_up_3.up_3
+	,em_less_3.less_3
+from STUDENTS s
+
+left join 
+	(
+	select s1.ID,count(e1.MARK) as up_3
+	from STUDENTS s1
+	inner join EXAM_MARKS e1
+		on e1.STUDENT_ID=s1.ID
+		and e1.MARK>=3
+		group by s1.ID
+	) em_up_3
+on s.ID=em_up_3.ID 
+
+
+left join 
+	(
+	select s2.ID,count(e2.MARK) as less_3
+	from STUDENTS s2
+	inner join EXAM_MARKS e2
+		on e2.STUDENT_ID=s2.ID
+		and e2.MARK<3
+		group by s2.ID
+	) em_less_3
+on s.ID=em_less_3.ID
+
+drop view Success
+--for check
+select * from Success
+
+
+-- 5. Какие из представленных ниже представлений являются обновляемыми?
+
+ C. CREATE VIEW THIRDEXAM
+   AS SELECT *
+   FROM DAILYEXAM
+   WHERE EXAM_DATE = '2012/06/03'
+
+
+ D. CREATE VIEW NULLCITIES
+   AS SELECT ID, SURNAME, CITY
+   FROM STUDENTS
+    WHERE CITY IS NULL
+   OR SURNAME BETWEEN 'А' AND 'Д'
+   WITH CHECK OPTION
+-- Тільки ці view  не містять агрегатних ф-цій, distinct, group by
+
+-- 6. Создайте представление таблицы STUDENTS с именем STIP, включающее поля 
+--    STIPEND и ID и позволяющее вводить или изменять значение поля 
+--    стипендия, но только в пределах от 100 д о 500.
+
+create view STIP as
+select
+	s.ID,
+	s.SURNAME, 
+	s.NAME, 
+	s.STIPEND 
+from STUDENTS s
+where s.STIPEND between 100 and 500
+with check option
+
+drop view STIP
+--check
+select * from STIP
