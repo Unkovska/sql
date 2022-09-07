@@ -1,0 +1,157 @@
+-- 0. Отобразите для каждого из курсов количество парней и девушек. 
+select 
+	count(case gender 
+		when 'm' then gender 
+	end) p, 
+count(case gender 
+		when 'f' then gender 
+end) d 
+	,course
+from students 
+group by course, gender 
+
+
+-- 1. Напишите запрос для таблицы EXAM_MARKS, выдающий даты, для которых средний балл 
+--    находиться в диапазоне от 4.22 до 4.77. Формат даты для вывода на экран: 
+--    день месяць, например, 05 Jun.
+
+select
+  --avg (mark)
+ concat(DAY(EXAM_DATE),' ',DATENAME(mm,exam_date))
+  EXAM_DATE 
+from EXAM_MARKS
+group by exam_date 
+having avg(mark) between 4.22 and  4.77
+
+-- 2. Напишите запрос, который по таблице EXAM_MARKS позволяет найти период времени,
+--    в течении которого студент сдавал сессию, количество сдаваемых предметов, количество пересдач, 
+--	  а также их максимальные и минимальные оценки. В выборке дожлен присутствовать идентификатор студента.
+--    Примечание: таблица оценок - покрывает одну сессию, промежуток времени -
+--    количество дней, которые провел студент на этой сессии - от первого до 
+--    последнего экзамена включительно
+--    Примечание-2: функция DAY() для решения не подходит! 
+
+select
+--*
+STUDENT_ID,
+DATEDIFF(DAY,min(EXAM_DATE),max(EXAM_DATE))+1 as term,
+count(SUBJ_ID) as subj_total,
+count(SUBJ_ID)-count(distinct SUBJ_ID) as failure,
+max(MARK) as maxm,
+min(MARK) as minm
+
+from EXAM_MARKS
+--where STUDENT_ID=3
+group by STUDENT_ID
+
+
+-- 3. Покажите список идентификаторов студентов, которые имеют пересдачи. 
+select 
+STUDENT_ID
+--	, count(SUBJ_ID)
+--	, count(distinct SUBJ_ID) 
+from EXAM_MARKS 
+group by STUDENT_ID 
+having count(SUBJ_ID)<>count(distinct SUBJ_ID)
+
+
+-- 4. Напишите запрос, отображающий список предметов обучения, вычитываемых за самый короткий 
+--    промежуток времени, отсортированный в порядке убывания семестров. Поле семестра в 
+--    выходных данных должно быть первым, за ним должны следовать наименование и 
+--    идентификатор предмета обучения.
+
+SELECT
+semester
+, name
+--, min (hours)
+, id
+from SUBJECTS
+group by semester,  hours, name, id 
+having  min (hours) =(select  min  (hours)from SUBJECTS)
+order by  semester  desc
+
+
+-- 5. Напишите запрос с подзапросом для получения данных обо всех положительных оценках(4, 5) Марины 
+--    Шуст (предположим, что ее персональный номер неизвестен), идентификаторов предметов и дат 
+--    их сдачи.
+
+select
+*
+from exam_marks
+where student_id = (
+select id from students where surname='Шуст') and mark in (4, 5)
+
+
+
+-- 6. Покажите сумму баллов для каждой даты сдачи экзаменов, при том, что средний балл не равен 
+--    среднему арифметическому между максимальной и минимальной оценкой. Данные расчитать только 
+--    для студенток. Результат выведите в порядке убывания сумм баллов, а дату в формате dd/mm/yyyy.
+
+select 
+convert(varchar(12),EXAM_DATE,103)
+,sum(MARK) as suma_marks
+from EXAM_MARKS
+where student_id in (select id from students where GENDER ='f')
+group by EXAM_DATE
+having avg (MARK)<>(max(MARK)-min (MARK)/2)
+order by suma_marks desc
+
+
+
+-- 7. Покажите имена и фамилии всех студентов, у которых средний балл по предметам
+--    с идентификаторами 1 и 2 превышает средний балл этого же студента
+--    по всем остальным предметам. Используйте вложенные подзапросы, а также конструкцию
+--    AVG(case...), либо коррелирующий подзапрос.
+--    Примечание: может так оказаться, что по "остальным" предметам (не 1ый и не 2ой) не было
+--    получено ни одной оценки, в таком случае принять средний бал за 0 - для этого можно
+--    использовать функцию ISNULL().
+
+select
+	 name
+	,surname 
+from students 
+where id in( 
+select student_id 
+from EXAM_MARKS 
+group by STUDENT_ID 
+having avg(case 
+when SUBJ_ID in (1,2) then MARK 
+end) > 
+isnull(avg(case 
+when SUBJ_ID not in (1,2) then MARK 
+end),0))
+
+
+
+-- 8. Напишите запрос, выполняющий вывод общего суммарного и среднего баллов каждого 
+--    экзаменованого второкурсника, его идентификатор и кол-во полученных оценок при условии, 
+--    что он успешно сдал 3 и более предметов.
+
+select STUDENT_ID 'student'
+, sum(MARK)'sum'
+, avg(MARK) 'avg'
+, count(MARK)
+, count(distinct SUBJ_ID) 
+from EXAM_MARKS em 
+where MARK>2 
+group by STUDENT_ID 
+having STUDENT_ID in(select ID from STUDENTS where COURSE = 2) 
+and count(distinct SUBJ_ID)>=3
+
+
+-- 9. Вывести названия всех предметов, средний балл которых превышает средний балл по всем 
+--    предметам университетов г.Днепра. Используйте вложенные подзапросы.
+select 
+NAME 
+from SUBJECTS 
+where ID in (select SUBJ_ID 
+from EXAM_MARKS 
+group by SUBJ_ID 
+having avg(MARK) > 
+(select avg(MARK) 
+from EXAM_MARKS 
+where STUDENT_ID in 
+(select ID 
+from STUDENTS 
+where UNIV_ID in (select ID from UNIVERSITIES where CITY = 'Днепр'))))
+
