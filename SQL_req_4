@@ -1,0 +1,186 @@
+-- 1. Напишите запрос, выдающий список фамилий преподавателей английского
+--    языка с названиями университетов, в которых они преподают.
+--    Отсортируйте запрос по городу, где расположен университ, а
+--    затем по фамилии лектора.
+
+select 
+	L.SURNAME, U.NAME --SUBJ_ID, s.NAME, U.NAME --, U.NAME
+from LECTURERS L
+	join SUBJ_LECT D
+		on L.ID=D.LECTURER_ID
+	join UNIVERSITIES U
+		on L.UNIV_ID=U.ID
+	join SUBJECTS S
+		on S.ID= D.SUBJ_ID
+where s.NAME='Английский'
+
+-- 2. Напишите запрос, который выполняет вывод данных о фамилиях, сдававших экзамены 
+--    студентов, учащихся в Б.Церкви, вместе с наименованием каждого сданного ими предмета, 
+--    оценкой и датой сдачи.
+select
+	S.SURNAME,  E.MARK, P.NAME, convert (varchar (12), EXAM_DATE, 105) as DATE
+from EXAM_MARKS  E
+		inner join STUDENTS  S
+			on E.STUDENT_ID=S.ID
+		inner join SUBJECTS  P
+			on E.SUBJ_ID=P.ID
+		inner join UNIVERSITIES U
+			on S.UNIV_ID=U.ID
+where U.CITY='Белая Церковь'
+
+
+-- 3. Используя оператор JOIN, выведите объединенный список городов с указанием количества 
+--    учащихся в них студентов и преподающих там же преподавателей.
+
+-- 		Задачу нужно нужно понимать так: вывести  список городов, в которых расположены университеты. Для каждого 
+-- 		такого города указать количество студентов обучающихся в этом городе всесте с количеством преподавателей
+-- 		преподающих в этом городе
+
+select u.CITY as city,sum(st.qty_stu), sum(le.qty_lec)
+from UNIVERSITIES u
+left join
+	(
+	select s.UNIV_ID, count(s.ID) as qty_stu
+	from STUDENTS s
+	group by s.UNIV_ID
+	) st
+on st.UNIV_ID=u.ID
+
+left join
+	(
+	select l.UNIV_ID, count(l.ID) as qty_lec
+	from LECTURERS l
+	group by l.UNIV_ID
+	) le
+on le.UNIV_ID=u.ID		
+group by u.CITY
+
+
+-- 4. Напишите запрос который выдает фамилии всех преподавателей и наименование предметов,
+--    которые они читают в КПИ
+
+select 
+	l.SURNAME,
+	s.NAME
+from LECTURERS l
+	inner join SUBJ_LECT sl
+		on l.ID=sl.LECTURER_ID
+	inner join SUBJECTS s
+		on s.ID=sl.SUBJ_ID
+	inner join  UNIVERSITIES u
+		on l.UNIV_ID= u.ID
+where U.NAME= 'КПИ'
+
+-- 5. Покажите всех студентов-двоешников, кто получил только неудовлетворительные оценки (2) 
+--    и по каким предметам, а также тех кто не сдал ни одного экзамена. 
+--    В выходных данных должны быть приведены фамилии студентов, названия предметов и 
+--    оценка, если оценки нет, заменить ее на прочерк.
+select 
+	s.SURNAME, 
+	case when su.NAME is null then '-' else su.name end as SUBJ,
+	case when e.MARK is null then '-' else cast (e.mark as varchar) end as MARK
+		--av_m.avm
+from STUDENTS s
+	left join EXAM_MARKS e
+		on e.STUDENT_ID=s.ID
+	left join SUBJECTS su
+		on e.SUBJ_ID=su.ID
+	left join 
+	(
+		select e.STUDENT_ID,avg(e.MARK) as avm
+		from EXAM_MARKS e
+		group by e.STUDENT_ID
+		having avg(e.MARK)=2 
+	) av_m
+on av_m.STUDENT_ID=s.ID
+where av_m.avm=2 or e.MARK is null
+
+
+
+-- 6. Напишите запрос, который выполняет вывод списка университетов с рейтингом, 
+--    превышающим 490, вместе со значением максимального размера стипендии, 
+--    получаемой студентами в этих университетах.
+
+select u.NAME,st.MAX_STIP
+from UNIVERSITIES u
+left join 
+	(
+	select UNIV_ID, max(STIPEND) as MAX_STIP 
+	from STUDENTS
+	group by UNIV_ID
+	 ) st
+on st.UNIV_ID=u.ID
+where u.RATING>490
+
+-- 7. Расчитать средний бал по оценкам студентов для каждого университета, 
+--    умноженный на 100, округленный до целого, и вычислить разницу с текущим значением
+--    рейтинга университета.
+select 
+	u.NAME, 
+	round(avg(e.MARK)*100,0) as NEW_RATING, 
+	(u.RATING-round(avg(e.MARK)*100,0)) as  DELTA
+from UNIVERSITIES u
+	left join STUDENTS s
+		on s.UNIV_ID=u.ID
+	inner join EXAM_MARKS e
+		on e.STUDENT_ID=s.id
+group by u.NAME, u.RATING
+
+-- 8. Написать запрос, выдающий список всех фамилий лекторов из Киева попарно. 
+--    При этом не включать в список комбинации фамилий самих с собой,
+--    то есть комбинацию типа "Коцюба-Коцюба", а также комбинации фамилий, 
+--    отличающиеся порядком следования, т.е. включать лишь одну из двух 
+--    комбинаций типа "Хижна-Коцюба" или "Коцюба-Хижна".
+
+select concat(L1.SURNAME,'-',L2.SURNAME) as PAIRS
+from LECTURERS L1
+inner join LECTURERS L2
+	on L1.ID>L2.ID
+	and L1.SURNAME<>L2.SURNAME
+	and L2.SURNAME<>L1.SURNAME
+where L1.CITY='Киев' and L2.CITY='Киев'
+
+-- 9. Выдать информацию о всех университетах, всех предметах и фамилиях преподавателей, 
+--    если в университете для конкретного предмета преподаватель отсутствует, то его фамилию
+--    вывести на экран как прочерк '-' (воспользуйтесь ф-ей isnull)
+select  
+	u.NAME,
+	s.NAME, 
+	case when sll.SURNAME is null then '-' else sll.SURNAME end as LECT_SURNAME
+
+from UNIVERSITIES u
+cross join SUBJECTS s
+left join
+	(
+		select 
+			CONCAT (sl.SUBJ_ID,'_',l.UNIV_ID) as id_id,
+			l.SURNAME
+		from SUBJ_LECT sl
+		left join LECTURERS l
+			on l.ID=sl.LECTURER_ID
+	) sll
+on sll.id_id=CONCAT (s.ID,'_',u.ID)
+	
+
+-- 10. Кто из преподавателей и сколько поставил пятерок за свой предмет?
+
+select sll.SURNAME,count(e.MARK) 
+from EXAM_MARKS e
+inner join STUDENTS s
+on s.ID=e.STUDENT_ID
+left join UNIVERSITIES u
+on u.ID=s.UNIV_ID
+left join
+	(
+		select 
+			CONCAT (l.UNIV_ID,'_',sl.SUBJ_ID) as id_id,
+			l.SURNAME
+		from SUBJ_LECT sl
+		left join LECTURERS l
+			on l.ID=sl.LECTURER_ID
+	) sll
+
+on sll.id_id=CONCAT(s.UNIV_ID,'_',e.SUBJ_ID)
+where e.MARK=5 and sll.SURNAME is not null 
+group by sll.SURNAME
+
